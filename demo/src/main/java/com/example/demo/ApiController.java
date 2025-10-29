@@ -1,21 +1,7 @@
 package com.example.demo;
 
-
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-
-import java.net.MalformedURLException;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import jakarta.annotation.PostConstruct;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,12 +9,33 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import jakarta.annotation.PostConstruct;
+
 @RestController // Marca esta classe como um controller REST (converte retornos para JSON)
 @RequestMapping("/api") // Prefixo para todas as rotas nesta classe (ex: /api/mensagens)
 public class ApiController {
 
-    // ... (dentro da classe ApiController)
+    @Autowired
+    private EmailService emailService;
 
+    // ... (dentro da classe ApiController)
     // --- Endpoint 3: Baixar/Servir Arquivos ---
     @GetMapping("/arquivos/{filename:.+}")
     public ResponseEntity<Resource> servirArquivo(@PathVariable String filename) {
@@ -65,11 +72,9 @@ public class ApiController {
             return ResponseEntity.ok()
                     // Define o tipo de conteúdo (ex: 'image/jpeg', 'application/pdf')
                     .contentType(MediaType.parseMediaType(contentType))
-
                     // --- Este é o cabeçalho que "força" o download ---
                     // Ele diz ao navegador: "Trate isso como um anexo com este nome"
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
-
                     // Envia o arquivo no corpo da resposta
                     .body(resource);
 
@@ -106,14 +111,33 @@ public class ApiController {
     }
 
     // --- Endpoint 1: Mensagens ---
+    @PostMapping("/mensagens")
+    public ResponseEntity<?> receberMessage(@RequestBody Message message) {
+        mensagensDb.add(message);
 
-    @PostMapping("/mensagens") // Mapeia requisições POST para /api/mensagens
-    public ResponseEntity<Message> receberMessage(@RequestBody Message Message) {
-        // @RequestBody converte o JSON do corpo da requisição para o objeto Message
-        mensagensDb.add(Message);
+        try {
+            // Tenta enviar e-mail
+            emailService.enviarNotificacao(message.remetente(), message.texto());
 
-        // Retorna um status 201 (Created) e a Message que foi salva
-        return ResponseEntity.status(HttpStatus.CREATED).body(Message);
+            // Retorna status e mensagem de sucesso
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(Map.of(
+                            "status", "Mensagem enviada com sucesso!",
+                            "remetente", message.remetente(),
+                            "texto", message.texto()
+                    ));
+
+        } catch (Exception e) {
+            // Loga o erro no console para você ver o problema
+            e.printStackTrace();
+
+            // Retorna erro com mensagem
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "status", "Erro ao enviar a mensagem",
+                            "erro", e.getMessage()
+                    ));
+        }
     }
 
     @GetMapping("/mensagens") // Mapeia requisições GET para /api/mensagens
@@ -123,7 +147,6 @@ public class ApiController {
     }
 
     // --- Endpoint 2: Upload de Arquivo ---
-
     @PostMapping("/upload") // Mapeia requisições POST para /api/upload
     public ResponseEntity<Map<String, String>> uploadDeArquivo(@RequestParam("arquivo") MultipartFile arquivo) {
         // @RequestParam("arquivo") busca pelo arquivo enviado no form-data com a chave "arquivo"
