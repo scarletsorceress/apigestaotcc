@@ -1,38 +1,32 @@
 package com.example.demo;
 
-import java.util.Date;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import org.springframework.stereotype.Service;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.interfaces.DecodedJWT;
 
 @Service
 public class JwtService {
 
-    private final String secret = "MEU_SEGREDO_SUPER_SEGURO";
-    private final Algorithm algorithm = Algorithm.HMAC256(secret);
-
-    // Tempo de expiração em 2 horas
-    private final long expirationMs = 2 * 60 * 60 * 1000;
+    private final String secret = "MEUSEGREDOSUPERSECRETO123";
 
     public String gerarToken(String username) {
         return JWT.create()
                 .withSubject(username)
-                .withIssuedAt(new Date())
-                .withExpiresAt(new Date(System.currentTimeMillis() + expirationMs))
-                .sign(algorithm);
+                .withIssuedAt(Instant.now())
+                .withExpiresAt(Instant.now().plus(2, ChronoUnit.HOURS))
+                .sign(Algorithm.HMAC256(secret));
     }
 
     public String validarToken(String token) {
-        try {
-            return JWT.require(algorithm)
-                    .build()
-                    .verify(token)
-                    .getSubject();
-        } catch (JWTVerificationException e) {
-            return null; // Token inválido
-        }
+        DecodedJWT jwt = JWT.require(Algorithm.HMAC256(secret))
+                .build()
+                .verify(token);
+
+        return jwt.getSubject(); // retorna o username
     }
 }
