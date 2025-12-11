@@ -4,6 +4,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.FetchType;
 
 @Entity
 public class MessageRequest {
@@ -15,19 +17,24 @@ public class MessageRequest {
     private String remetente;
     private String texto;
 
-    // Agora apenas o ID do trabalho vindo do microserviço
-    private String trabalhoId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Trabalho trabalho;
 
-    public MessageRequest() {}
+    public MessageRequest() {
+    }
 
-    public MessageRequest(String remetente, String texto, String trabalhoId) {
+    public MessageRequest(String remetente, String texto, Trabalho trabalho) {
         this.remetente = remetente;
         this.texto = texto;
-        this.trabalhoId = trabalhoId;
+        this.trabalho = trabalho;
     }
 
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getRemetente() {
@@ -46,11 +53,11 @@ public class MessageRequest {
         this.texto = texto;
     }
 
-    public String getTrabalhoId() {
-        return trabalhoId;
+    public Trabalho getTrabalho() {
+        return trabalho;
     }
 
-    public void setTrabalhoId(String trabalhoId) {
-        this.trabalhoId = trabalhoId;
+    public void setTrabalho(Trabalho trabalho) {
+        this.trabalho = trabalho;
     }
 }
